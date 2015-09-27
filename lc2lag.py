@@ -1,6 +1,15 @@
 import os
 from javelin.zylc import get_data
 from javelin.lcmodel import Cont_Model, Rmap_Model, Pmap_Model
+import pickle
+
+
+# Get the whole sid list
+def get_total_sid_list():
+    readfile = open("info_database/sid.pkl", "rb")
+    sid_list = pickle.load(readfile)
+    readfile.close()
+    return sid_list
 
 
 def obtainlag(file_con, file_line):
@@ -17,7 +26,6 @@ def obtainlag(file_con, file_line):
     data_out = "cont-" + file_line.split(".")[0] + ".txt"
     cymod.do_mcmc(conthpd=cmod.hpd, threads=4, fchain=data_out)
 
-    cy.plot()
 
 def childprocess(pipe):
     for each_line in line_list:
@@ -29,25 +37,29 @@ def childprocess(pipe):
             except Exception as reason:
                 i=i+1
         if i==3:
-            print("Failed 3 times for "+each_target+" "+each_line+"\n")
+            print("Failed 3 times for "+str(each_sid)+" "+each_line+"\n")
             exception_list.append(str(reason))
     msg="0"
     os.write(pipe, msg.encode("UTF-8"))
+    os.close(pipe)
     os._exit(0)
 
 
 exception_list=list()
 line_list=["Hbeta", "Mg2", "C4", "N5"]
+sid_list = get_total_sid_list()
 os.chdir("lc")
-target_list=os.listdir(os.getcwd())
-for each_target in target_list:
-    os.chdir(each_target)
+for each_sid in sid_list:
+    os.chdir(str(each_sid))
     pipein, pipeout=os.pipe()
     newid=os.fork()
     if newid==0:
+        os.close(pipein)
         childprocess(pipeout)
     else:
+        os.close(pipeout)
         ret=os.read(pipein, 32)
+        os.close(pipein)
     os.chdir("../")
 
 os.chdir("../")
