@@ -144,13 +144,13 @@ def single_line_fit(wave, flux, error, line):
             str(line) +
             "not prominent, unable to fit")
     # For debug purpose only
-    #single_line_plot_func = lambda x: gaussian(
+    # single_line_plot_func = lambda x: gaussian(
     #    x,
     #    line_fit_result[0],
     #    line_fit_result[1],
     #    line_fit_result[2])
     #plt.plot(wave, list(map(single_line_plot_func, wave)))
-    #plt.show()
+    # plt.show()
     return [line_fit_result, line_fit_error]
 
 
@@ -361,7 +361,12 @@ def main_process(sid, line_set, cont_set):
                     print(str(reason))
                     exception_logging(sid, each_mjd, each_line, reason)
                     continue
-            rkk = check_fit(wave_fit, flux_corr, fluxerr_fit, fit_res, each_line)
+            rkk = check_fit(
+                wave_fit,
+                flux_corr,
+                fluxerr_fit,
+                fit_res,
+                each_line)
             if rkk > 10.0:
                 reason = "Reduced chi-square (" + str(rkk) + ") too large"
                 print(reason)
@@ -391,7 +396,7 @@ except OSError:
     pass
 sid_list = get_total_sid_list()
 for each_sid in sid_list:
-    #try:
-    main_process(str(each_sid), line_set, cont_set)
-    #except Exception as reason:
-    #    pass
+    try:
+        main_process(str(each_sid), line_set, cont_set)
+    except Exception as reason:
+        pass
