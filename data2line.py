@@ -144,13 +144,13 @@ def single_line_fit(wave, flux, error, line):
             str(line) +
             "not prominent, unable to fit")
     # For debug purpose only
-    # single_line_plot_func = lambda x: gaussian(
+    #single_line_plot_func = lambda x: gaussian(
     #    x,
     #    line_fit_result[0],
     #    line_fit_result[1],
     #    line_fit_result[2])
     #plt.plot(wave, list(map(single_line_plot_func, wave)))
-    # plt.show()
+    #plt.show()
     return [line_fit_result, line_fit_error]
 
 
@@ -234,7 +234,7 @@ def hbeta_complex_fit(wave_fit, flux_fit, error_fit):
     line_fit_error = np.array(line_fit_extra_temp)
     return [line_fit_result, line_fit_error]
     # For debug purpose only
-    #hbeta_line_plot_func = lambda x: gaussian(x,
+    # hbeta_line_plot_func = lambda x: gaussian(x,
     #                                          line_fit_result[0],
     #                                          line_fit_result[1],
     #                                          line_fit_result[2]) + gaussian(x,
@@ -245,7 +245,34 @@ def hbeta_complex_fit(wave_fit, flux_fit, error_fit):
     #                                                                                                        line_fit_result[7],
     #                                                                                                        line_fit_result[8])
     #plt.plot(wave_fit, list(map(hbeta_line_plot_func, wave_fit)))
-    #plt.show()
+    # plt.show()
+
+
+# Check whether fit is successful by reduced chi-square (If < 10.0, then fine)
+def check_fit(wave, flux, error, fit_res, line):
+    gaussian = lambda x, a, x0, sig: a * np.exp(-(x - x0)**2 / (2 * sig**2))
+    kk_func = lambda x, y, z: ((x - y) / z) ** 2.0
+    if line != "Hbeta":
+        narrline_func = lambda x: gaussian(
+            x,
+            fit_res[0],
+            fit_res[1],
+            fit_res[2])
+        expected = np.array(list(map(narrline_func, wave)))
+    else:
+        hbeta_line_func = lambda x: gaussian(x,
+                                             fit_res[0],
+                                             fit_res[1],
+                                             fit_res[2]) + gaussian(x,
+                                                                    fit_res[3],
+                                                                    fit_res[4],
+                                                                    fit_res[5]) + gaussian(x,
+                                                                                           fit_res[6],
+                                                                                           fit_res[7],
+                                                                                           fit_res[8])
+        expected = np.array(list(map(hbeta_line_func, wave)))
+    rkk = sum(list(map(kk_func, flux, expected, error))) / (len(flux) - 3.0)
+    return rkk
 
 
 # Function to output fit result and error
@@ -334,6 +361,12 @@ def main_process(sid, line_set, cont_set):
                     print(str(reason))
                     exception_logging(sid, each_mjd, each_line, reason)
                     continue
+            rkk = check_fit(wave_fit, flux_corr, fluxerr_fit, fit_res, each_line)
+            if rkk > 10.0:
+                reason = "Reduced chi-square (" + str(rkk) + ") too large"
+                print(reason)
+                exception_logging(sid, each_mjd, each_line, reason)
+                continue
             os.chdir("line/" + str(sid))
             try:
                 os.mkdir(each_line)
@@ -356,9 +389,9 @@ try:
     os.mkdir("line")
 except OSError:
     pass
-sid_list=get_total_sid_list()
+sid_list = get_total_sid_list()
 for each_sid in sid_list:
-    try:
-        main_process(str(each_sid), line_set, cont_set)
-    except Exception as reason:
-        pass
+    #try:
+    main_process(str(each_sid), line_set, cont_set)
+    #except Exception as reason:
+    #    pass
