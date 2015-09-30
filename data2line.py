@@ -61,9 +61,8 @@ def mask_points(wave, flux, error):
         error_temp.append(error[i])
     return [wave_temp, flux_temp, error_temp]
 
+
 # Function to extract part of the spectra to fit
-
-
 def extract_fit_part(wave, flux, error, center, width):
     wave_fit = list()
     flux_fit = list()
@@ -92,7 +91,7 @@ def fit_cont(wave, flux, error, con_wave):
         error_fit.extend(error_temp)
     powerlaw = lambda x, a, b: a * (x ** b)
     guess = [10.0, -1.0]
-    #plt.plot(wave_fit, flux_fit)
+    plt.plot(wave_fit, flux_fit)
     try:
         (con_fit_result, con_fit_extra) = curve_fit(powerlaw,
                                                     wave_fit,
@@ -101,13 +100,13 @@ def fit_cont(wave, flux, error, con_wave):
                                                     sigma=error_fit,
                                                     maxfev=100000)
        # print(con_fit_result)
-       # powerlaw_plot_func=lambda x: powerlaw(x, con_fit_result[0], con_fit_result[1])
-       # plt.plot(wave_fit, list(map(powerlaw_plot_func, wave_fit)))
-       # plt.show()
+        powerlaw_plot_func=lambda x: powerlaw(x, con_fit_result[0], con_fit_result[1])
+        plt.plot(wave_fit, list(map(powerlaw_plot_func, wave_fit)))
+        plt.show()
         con_fit_error = np.sqrt(np.diag(con_fit_extra))
     except Exception as reason:
         raise SpectraException("Fit continuum failed")
-    return [con_fit_result, con_fit_error]
+    return [con_fit_result, con_fit_error, wave_fit, flux_fit, error_fit]
 
 
 # Continuum correction
@@ -252,7 +251,10 @@ def hbeta_complex_fit(wave_fit, flux_fit, error_fit):
 def check_fit(wave, flux, error, fit_res, line):
     gaussian = lambda x, a, x0, sig: a * np.exp(-(x - x0)**2 / (2 * sig**2))
     kk_func = lambda x, y, z: ((x - y) / z) ** 2.0
-    if line != "Hbeta":
+    if line == "cont":
+        powerlaw_func = lambda x: fit_res[0] * (x ** fit_res[1])
+        expected = np.array(list(map(powerlaw_func, wave)))
+    elif line != "Hbeta":
         narrline_func = lambda x: gaussian(
             x,
             fit_res[0],
@@ -272,6 +274,12 @@ def check_fit(wave, flux, error, fit_res, line):
                                                                                            fit_res[8])
         expected = np.array(list(map(hbeta_line_func, wave)))
     rkk = sum(list(map(kk_func, flux, expected, error))) / (len(flux) - 3.0)
+    if rkk > 10.0:
+        raise SpectraException(
+            str(line) +
+            " reduced chi-square (" +
+            str(rkk) +
+            ") too large")
     return rkk
 
 
@@ -331,11 +339,17 @@ def main_process(sid, line_set, cont_set):
                     wave, flux, fluxerr, line_set[each_line], 70.0)
             # Fit local continuum
             try:
-                [cont_res, cont_err] = fit_cont(
+                [cont_res, cont_err, wave_cont, flux_cont, fluxerr_cont] = fit_cont(
                     wave_fit, flux_fit, fluxerr_fit, cont_set[each_line])
             except SpectraException as reason:
                 print(str(reason))
                 exception_logging(sid, each_mjd, each_line, reason)
+                continue
+            try:
+                rkk = check_fit(wave_cont, flux_cont, fluxerr_cont, cont_res, "cont")
+            except SpectraException as reason:
+                print(str(reason))
+                exception_logging(sid, each_mjd, each_line + "-cont", reason)
                 continue
             os.chdir("line/" + str(sid))
             try:
@@ -361,15 +375,15 @@ def main_process(sid, line_set, cont_set):
                     print(str(reason))
                     exception_logging(sid, each_mjd, each_line, reason)
                     continue
-            rkk = check_fit(
-                wave_fit,
-                flux_corr,
-                fluxerr_fit,
-                fit_res,
-                each_line)
-            if rkk > 10.0:
-                reason = "Reduced chi-square (" + str(rkk) + ") too large"
-                print(reason)
+            try:
+                rkk = check_fit(
+                    wave_fit,
+                    flux_corr,
+                    fluxerr_fit,
+                    fit_res,
+                    each_line)
+            except SpectraException as reason:
+                print(str(reason))
                 exception_logging(sid, each_mjd, each_line, reason)
                 continue
             os.chdir("line/" + str(sid))
