@@ -361,6 +361,7 @@ def main_process(sid, line_set, cont_set):
                 exception_logging(sid, each_mjd, each_line, reason)
                 continue
             figure_cont.savefig("line-fig/"+str(sid)+"/"+str(each_mjd)+"-"+str(each_line)+"-cont.jpg")
+            plt.close()
             try:
                 rkk = check_fit(
                     wave_cont,
@@ -397,6 +398,7 @@ def main_process(sid, line_set, cont_set):
                     exception_logging(sid, each_mjd, each_line, reason)
                     continue
             figure_line.savefig("line-fig/"+str(sid)+"/"+str(each_mjd)+"-"+str(each_line)+".jpg")
+            plt.close()
             try:
                 rkk = check_fit(
                     wave_fit,
@@ -419,14 +421,14 @@ def main_process(sid, line_set, cont_set):
         print("Process finished for " + each_mjd + "\n")
 
 
-#line_set = {"C4": 1549.0, "Mg2": 2798.0, "Hbeta": 4902.0}
-#cont_set = {
-#    "C4": [
-#        1489.0, 1609.0], "Mg2": [
-#            2755.0, 2848.0], "Hbeta": [
-#                4750.0, 5100.0]}
-line_set = {"Hbeta": 4902.0}
-cont_set = {"Hbeta": [4750.0, 5100.0]}
+line_set = {"C4": 1549.0, "Mg2": 2798.0, "Hbeta": 4902.0}
+cont_set = {
+    "C4": [
+        1489.0, 1609.0], "Mg2": [
+            2755.0, 2848.0], "Hbeta": [
+                4750.0, 5100.0]}
+#line_set = {"Hbeta": 4902.0}
+#cont_set = {"Hbeta": [4750.0, 5100.0]}
 try:
     os.mkdir("line")
 except OSError:
