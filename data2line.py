@@ -80,6 +80,7 @@ def extract_fit_part(wave, flux, error, center, width):
 
 # Fit continuum with nearby data
 def fit_cont(wave, flux, error, con_wave):
+    fig = plt.figure()
     wave_fit = list()
     flux_fit = list()
     error_fit = list()
@@ -93,20 +94,26 @@ def fit_cont(wave, flux, error, con_wave):
     guess = [10.0, -1.0]
     plt.plot(wave_fit, flux_fit)
     try:
-        (con_fit_result, con_fit_extra) = curve_fit(powerlaw,
+        times = 0
+        while times < 3:
+            (con_fit_result, con_fit_extra) = curve_fit(powerlaw,
                                                     wave_fit,
                                                     flux_fit,
                                                     p0=guess,
                                                     sigma=error_fit,
                                                     maxfev=100000)
-       # print(con_fit_result)
-        powerlaw_plot_func=lambda x: powerlaw(x, con_fit_result[0], con_fit_result[1])
+            print(con_fit_result)
+            guess = con_fit_result
+            times = times + 1
+        powerlaw_plot_func = lambda x: powerlaw(
+            x,
+            con_fit_result[0],
+            con_fit_result[1])
         plt.plot(wave_fit, list(map(powerlaw_plot_func, wave_fit)))
-        plt.show()
         con_fit_error = np.sqrt(np.diag(con_fit_extra))
     except Exception as reason:
         raise SpectraException("Fit continuum failed")
-    return [con_fit_result, con_fit_error, wave_fit, flux_fit, error_fit]
+    return [con_fit_result, con_fit_error, wave_fit, flux_fit, error_fit, fig]
 
 
 # Continuum correction
@@ -120,9 +127,10 @@ def corr_cont(wave, flux, err, cont_res):
 
 # Gaussian fit for narrowlines
 def single_line_fit(wave, flux, error, line):
+    fig = plt.figure()
     gaussian = lambda x, a, x0, sig: a * np.exp(-(x - x0)**2 / (2 * sig**2))
     guess = [max(flux), float(line), np.std(flux)]
-    #plt.plot(wave, flux)
+    plt.plot(wave, flux)
     try:
         (line_fit_result,
          line_fit_extra) = curve_fit(gaussian,
@@ -143,18 +151,18 @@ def single_line_fit(wave, flux, error, line):
             str(line) +
             "not prominent, unable to fit")
     # For debug purpose only
-    # single_line_plot_func = lambda x: gaussian(
-    #    x,
-    #    line_fit_result[0],
-    #    line_fit_result[1],
-    #    line_fit_result[2])
-    #plt.plot(wave, list(map(single_line_plot_func, wave)))
-    # plt.show()
-    return [line_fit_result, line_fit_error]
+    single_line_plot_func = lambda x: gaussian(
+       x,
+       line_fit_result[0],
+       line_fit_result[1],
+       line_fit_result[2])
+    plt.plot(wave, list(map(single_line_plot_func, wave)))
+    return [line_fit_result, line_fit_error, fig]
 
 
 # Fit Hbeta
 def hbeta_complex_fit(wave_fit, flux_fit, error_fit):
+    fig = plt.figure()
     gaussian = lambda x, a, x0, sig: a * np.exp(-(x - x0)**2 / (2 * sig**2))
     #plt.plot(wave_fit, flux_fit)
     # First fit OIII 5007 and substract it
@@ -231,20 +239,19 @@ def hbeta_complex_fit(wave_fit, flux_fit, error_fit):
     for each in hbetaline_fit_error:
         line_fit_extra_temp.append(each)
     line_fit_error = np.array(line_fit_extra_temp)
-    return [line_fit_result, line_fit_error]
     # For debug purpose only
-    # hbeta_line_plot_func = lambda x: gaussian(x,
-    #                                          line_fit_result[0],
-    #                                          line_fit_result[1],
-    #                                          line_fit_result[2]) + gaussian(x,
-    #                                                                         line_fit_result[3],
-    #                                                                         line_fit_result[4],
-    #                                                                         line_fit_result[5]) + gaussian(x,
-    #                                                                                                        line_fit_result[6],
-    #                                                                                                        line_fit_result[7],
-    #                                                                                                        line_fit_result[8])
-    #plt.plot(wave_fit, list(map(hbeta_line_plot_func, wave_fit)))
-    # plt.show()
+    hbeta_line_plot_func = lambda x: gaussian(x,
+                                              line_fit_result[0],
+                                              line_fit_result[1],
+                                              line_fit_result[2]) + gaussian(x,
+                                                                             line_fit_result[3],
+                                                                             line_fit_result[4],
+                                                                             line_fit_result[5]) + gaussian(x,
+                                                                                                            line_fit_result[6],
+                                                                                                            line_fit_result[7],
+                                                                                                            line_fit_result[8])
+    plt.plot(wave_fit, list(map(hbeta_line_plot_func, wave_fit)))
+    return [line_fit_result, line_fit_error, figure]
 
 
 # Check whether fit is successful by reduced chi-square (If < 10.0, then fine)
@@ -321,6 +328,11 @@ def main_process(sid, line_set, cont_set):
         os.mkdir(str(sid))
     except OSError:
         pass
+    os.chdir("../line-fig")
+    try:
+        os.mkdir(str(sid))
+    except OSError:
+        pass
     os.chdir("../")
     for each_mjd in mjd_list:
         print(str(sid) + "-" + str(each_mjd))
@@ -331,22 +343,31 @@ def main_process(sid, line_set, cont_set):
                 continue
             print("Found " + each_line + " in range")
             # Extract the part of data for fitting
-            if each_line == "Hbeta":
-                [wave_fit, flux_fit, fluxerr_fit] = extract_fit_part(
-                    wave, flux, fluxerr, line_set[each_line], 250.0)
-            else:
-                [wave_fit, flux_fit, fluxerr_fit] = extract_fit_part(
-                    wave, flux, fluxerr, line_set[each_line], 70.0)
+            [wave_fit, flux_fit, fluxerr_fit] = extract_fit_part(
+                    wave, flux, fluxerr, np.mean(cont_set[each_line]), 0.5 * (cont_set[each_line][1] - cont_set[each_line][0]))
             # Fit local continuum
             try:
-                [cont_res, cont_err, wave_cont, flux_cont, fluxerr_cont] = fit_cont(
-                    wave_fit, flux_fit, fluxerr_fit, cont_set[each_line])
+                [cont_res,
+                 cont_err,
+                 wave_cont,
+                 flux_cont,
+                 fluxerr_cont,
+                 figure_cont] = fit_cont(wave_fit,
+                                          flux_fit,
+                                          fluxerr_fit,
+                                          cont_set[each_line])
             except SpectraException as reason:
                 print(str(reason))
                 exception_logging(sid, each_mjd, each_line, reason)
                 continue
+            figure_cont.savefig("line-fig/"+str(sid)+"/"+str(each_mjd)+"-"+str(each_line)+"-cont.jpg")
             try:
-                rkk = check_fit(wave_cont, flux_cont, fluxerr_cont, cont_res, "cont")
+                rkk = check_fit(
+                    wave_cont,
+                    flux_cont,
+                    fluxerr_cont,
+                    cont_res,
+                    "cont")
             except SpectraException as reason:
                 print(str(reason))
                 exception_logging(sid, each_mjd, each_line + "-cont", reason)
@@ -361,7 +382,7 @@ def main_process(sid, line_set, cont_set):
             flux_corr = corr_cont(wave_fit, flux_fit, fluxerr_fit, cont_res)
             if each_line == "Hbeta":
                 try:
-                    [fit_res, fit_err] = hbeta_complex_fit(
+                    [fit_res, fit_err, figure_line] = hbeta_complex_fit(
                         wave_fit, flux_corr, fluxerr_fit)
                 except SpectraException as reason:
                     print(str(reason))
@@ -369,12 +390,13 @@ def main_process(sid, line_set, cont_set):
                     continue
             else:
                 try:
-                    [fit_res, fit_err] = single_line_fit(
+                    [fit_res, fit_err, figure_line] = single_line_fit(
                         wave_fit, flux_corr, fluxerr_fit, line_set[each_line])
                 except SpectraException as reason:
                     print(str(reason))
                     exception_logging(sid, each_mjd, each_line, reason)
                     continue
+            figure_line.savefig("line-fig/"+str(sid)+"/"+str(each_mjd)+"-"+str(each_line)+".jpg")
             try:
                 rkk = check_fit(
                     wave_fit,
@@ -397,15 +419,20 @@ def main_process(sid, line_set, cont_set):
         print("Process finished for " + each_mjd + "\n")
 
 
-line_set = {"N5": 1240.0, "C4": 1549.0, "Mg2": 2798.0, "Hbeta": 4902.0}
-cont_set = {
-    "N5": [
-        1180.0, 1300.0], "C4": [
-            1489.0, 1609.0], "Mg2": [
-                2738.0, 2848.0], "Hbeta": [
-                    4730.0, 5130.0]}
+#line_set = {"C4": 1549.0, "Mg2": 2798.0, "Hbeta": 4902.0}
+#cont_set = {
+#    "C4": [
+#        1489.0, 1609.0], "Mg2": [
+#            2755.0, 2848.0], "Hbeta": [
+#                4750.0, 5100.0]}
+line_set = {"Hbeta": 4902.0}
+cont_set = {"Hbeta": [4750.0, 5100.0]}
 try:
     os.mkdir("line")
+except OSError:
+    pass
+try:
+    os.mkdir("line-fig")
 except OSError:
     pass
 sid_list = get_total_sid_list()
