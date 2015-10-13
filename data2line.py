@@ -49,7 +49,7 @@ def get_total_sid_list():
     return sid_list
 
 
-# Omit error=0 or flux<0 points
+# Omit error=0 points
 def mask_points(wave, flux, error):
     wave_temp = list()
     flux_temp = list()
