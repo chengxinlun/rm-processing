@@ -3,9 +3,9 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pylab as plt
-from psrm.base.readspec import readspec
 from psrm.base.target_fibermap import parseVar_sid, parseVar_pmf
 from psrm.analSpec.ob2rf import ob2rf
+from psrm.analSpec.deredden import SF_deredden
 
 
 # Extract information from fits to a database made from .pkl
@@ -110,13 +110,10 @@ def read_fits(plate, fiberid, mjd, sid):
     except OSError:
         pass
     os.chdir(str(mjd))
-    # Read data from fits (code derived from gaoyang's plotSpec.py)
-    parM = readspec(
+    # Read data from fits (code derived from gaoyang's plotSpec.py and added reddening correction)
+    parM = SF_deredden(
         plate,
         fiberid,
-        'flux',
-        'loglam',
-        'wave',
         'fluxerr',
         mjd=mjd)
     zs = parseVar_pmf(plate, mjd, fiberid, 'zfinal', 'sourcetype')
