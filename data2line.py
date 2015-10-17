@@ -103,11 +103,13 @@ def single_line_fit(wave, flux, error, line):
                                      maxfev=10000)
         line_fit_error = np.sqrt(np.diag(line_fit_extra))
     except Exception:
+        plt.close()
         raise SpectraException(
             "Line " +
             str(line) +
             "fit failed")
     if line_fit_result[0] < 0:
+        plt.close()
         raise SpectraException(
             "Line " +
             str(line) +
@@ -124,6 +126,7 @@ def single_line_fit(wave, flux, error, line):
     plt.plot(wave, expected)
     rcs = chisquare(flux, expected)[0] / (len(flux) - 3)
     if rcs > 10.0:
+        plt.close()
         raise SpectraException(
             "Line " +
             str(line) +
@@ -148,16 +151,20 @@ def hbeta_complex_fit(wave, flux, error):
              4902.0,
              5007.0,
              4959.0,
+             10.0,
+             10.0,
+             10.0,
+             10.0,
              (flux[0] - flux[-1]) / (wave[0] - wave[-1]),
              (-flux[0] * wave[-1] + flux[-1] * wave[0]) / (wave[0] - wave[-1])]
     try:
         (line_fit_result,
-         line_fit_extra) = curve_fit(hbeta_complex_fit_func,
-                                     wave,
-                                     flux,
-                                     p0=guess,
-                                     sigma=error,
-                                     maxfev=100000)
+            line_fit_extra) = curve_fit(hbeta_complex_fit_func,
+                                        wave,
+                                        flux,
+                                        p0=guess,
+                                        sigma=error,
+                                        maxfev=600)
         line_fit_error = np.sqrt(np.diag(line_fit_extra))
     except Exception:
         plt.close()
@@ -183,10 +190,15 @@ def hbeta_complex_fit(wave, flux, error):
         line_fit_result[11])
     expected = list(map(hbeta_line_complex_func, wave))
     plt.plot(wave, expected)
+    plt.show()
     rcs = chisquare(flux, expected) / (len(flux) - 12)
     if rcs > 10.0:
         plt.close()
-        raise SpectraException("Line " + str(line) + "reduced chi-square too large" + str(rcs))
+        raise SpectraException(
+            "Line " +
+            str(line) +
+            "reduced chi-square too large" +
+            str(rcs))
     return [line_fit_result, line_fit_error, figure]
 
 
@@ -292,11 +304,12 @@ def main_process(sid, line_set):
         print("Process finished for " + each_mjd + "\n")
 
 
-line_set = {
-    "C4": [
-        1479.0, 1549.0, 1619.0], "Mg2": [
-            2745.0, 2798.0, 2858.0], "Hbeta": [
-                4720, 4902.0, 5200.0]}
+# line_set = {
+#    "C4": [
+#        1479.0, 1549.0, 1619.0], "Mg2": [
+#            2745.0, 2798.0, 2858.0], "Hbeta": [
+#                4720, 4902.0, 5200.0]}
+line_set = {"Hbeta": [4720.0, 4902.0, 5200.0]}
 try:
     os.mkdir("line")
 except OSError:
