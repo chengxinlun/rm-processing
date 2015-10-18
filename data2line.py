@@ -5,9 +5,11 @@ import pickle
 from scipy.optimize import curve_fit
 from scipy.stats import chisquare
 import matplotlib.pylab as plt
-
+from astropy.modeling import models, fitting
 
 # Define a special class for raising any exception related during the fit
+
+
 class SpectraException(Exception):
     pass
 
@@ -135,71 +137,61 @@ def single_line_fit(wave, flux, error, line):
     return [line_fit_result, line_fit_error, fig]
 
 
+def hbeta_complex_fit_func(p, fjac=None, x=None, y=None, err=None):
+    gaussian = lambda x, a, x0, sig: a * np.exp(-(x - x0)**2 / (2 * sig**2))
+    model = lambda x: gaussian(x,
+                               p[0],
+                               p[1],
+                               p[2]) + gaussian(x,
+                                                p[3],
+                                                p[4],
+                                                p[5]) + gaussian(x,
+                                                                 p[6],
+                                                                 p[7],
+                                                                 p[8]) + gaussian(x,
+                                                                                  p[9],
+                                                                                  p[10],
+                                                                                  p[11]) + p[12] * x + p[13]
+    status = 0
+    return [status, (y - model(x)) / err]
+
 # Fit Hbeta, OIII 4959, OIII 5007 all together!!
 # Well... This can work?
+
+
 def hbeta_complex_fit(wave, flux, error):
     fig = plt.figure()
-    gaussian = lambda x, a, x0, sig: a * np.exp(-(x - x0)**2 / (2 * sig**2))
-    hbeta_complex_fit_func = lambda x, a1, a2, a3, a4, x01, x02, x03, x04, sig1, sig2, sig3, sig4, k, b: gaussian(
-        x, a1, x01, sig1) + gaussian(x, a2, x02, sig2) + gaussian(x, a3, x03, sig3) + gaussian(x, a4, x04, sig4) + k * x + b
     plt.plot(wave, flux)
-    guess = [1.0,
-             1.0,
-             1.0,
-             2.0,
-             4902.0,
-             4902.0,
-             5007.0,
-             4959.0,
-             10.0,
-             10.0,
-             10.0,
-             10.0,
-             (flux[0] - flux[-1]) / (wave[0] - wave[-1]),
-             (-flux[0] * wave[-1] + flux[-1] * wave[0]) / (wave[0] - wave[-1])]
-    try:
-        (line_fit_result,
-            line_fit_extra) = curve_fit(hbeta_complex_fit_func,
-                                        wave,
-                                        flux,
-                                        p0=guess,
-                                        sigma=error,
-                                        maxfev=600)
-        line_fit_error = np.sqrt(np.diag(line_fit_extra))
-    except Exception:
-        plt.close()
-        raise SpectraException("Line Hbeta fit failed")
-    if line_fit_result[0] < 0 or line_fit_result[
-            1] < 0 or line_fit_result[2] < 0 or line_fit_result[3] < 0:
-        plt.close()
-        raise SpectraException("Line Hbeta not prominent, unable to fit")
+    hbeta_complex_fit_func = models.Gaussian1D(5.0, 4853.0, 20.0, bounds = {"amplitude": [0, 15.0], "mean": [4833,4863]}) + \
+            models.Gaussian1D(7.0, 4863.0, 3.0, bounds = {"amplitude": [0, 15.0], "mean": [4853, 4883]}) + \
+            models.Gaussian1D(5.0, 4883.0, 25.0, bounds = {"amplitude": [0, 15.0], "mean": [4863, 4883]}) + \
+            models.Gaussian1D(2.0, 4930.0, 1.5, bounds = {"amplitude": [0, 15.0], "mean": [4883, 4959]}) + \
+            models.Gaussian1D(5.0, 4959.0, 1.5, bounds = {"amplitude": [0, 15.0], "mean": [4940, 4970]}) + \
+            models.Gaussian1D(20.0, 5007.0, 3.0, bounds = {"amplitude": [0,50.0]}) + \
+            models.Linear1D((flux[0] - flux[-1]) / (wave[0] - wave[-1]), (-flux[0] * wave[-1] + flux[-1] * wave[0]) / (wave[0] - wave[-1]))
+    fitter = fitting.LevMarLSQFitter()
+    fit = fitter(hbeta_complex_fit_func, wave, flux, weights=1 / error**2)
+
+    # except Exception:
+    #    plt.close()
+    #    raise SpectraException("Line Hbeta fit failed")
+    # if line_fit_result[0] < 0 or line_fit_result[
+    #        1] < 0 or line_fit_result[2] < 0 or line_fit_result[3] < 0:
+    #    plt.close()
+    #    raise SpectraException("Line Hbeta not prominent, unable to fit")
     # For debug purpose only
-    hbeta_complex_plot_func = lambda x: hbeta_complex_fit_func(
-        x,
-        line_fit_result[0],
-        line_fit_result[1],
-        line_fit_result[2],
-        line_fit_result[3],
-        line_fit_result[4],
-        line_fit_result[5],
-        line_fit_result[6],
-        line_fit_result[7],
-        line_fit_result[8],
-        line_fit_result[9],
-        line_fit_result[10],
-        line_fit_result[11])
-    expected = list(map(hbeta_line_complex_func, wave))
+    expected = np.array(fit(wave))
     plt.plot(wave, expected)
-    plt.show()
-    rcs = chisquare(flux, expected) / (len(flux) - 12)
+    #plt.show()
+    rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 14)
+    print(rcs)
     if rcs > 10.0:
         plt.close()
         raise SpectraException(
-            "Line " +
-            str(line) +
-            "reduced chi-square too large" +
+            "Line Hbeta reduced chi-square too large" +
             str(rcs))
-    return [line_fit_result, line_fit_error, figure]
+    line_fit_error = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    return [fit.parameters, line_fit_error, fig]
 
 
 # Function to output fit result and error
@@ -309,7 +301,7 @@ def main_process(sid, line_set):
 #        1479.0, 1549.0, 1619.0], "Mg2": [
 #            2745.0, 2798.0, 2858.0], "Hbeta": [
 #                4720, 4902.0, 5200.0]}
-line_set = {"Hbeta": [4720.0, 4902.0, 5200.0]}
+line_set = {"Hbeta": [4720.0, 4902.0, 5150.0]}
 try:
     os.mkdir("line")
 except OSError:
@@ -318,7 +310,8 @@ try:
     os.mkdir("line-fig")
 except OSError:
     pass
-sid_list = get_total_sid_list()
+#sid_list = get_total_sid_list()
+sid_list = ['160']
 for each_sid in sid_list:
     try:
         main_process(str(each_sid), line_set)
