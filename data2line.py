@@ -310,8 +310,8 @@ try:
     os.mkdir("line-fig")
 except OSError:
     pass
-#sid_list = get_total_sid_list()
-sid_list = ['160']
+sid_list = get_total_sid_list()
+# sid_list = ['160']
 for each_sid in sid_list:
     try:
         main_process(str(each_sid), line_set)
