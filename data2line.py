@@ -164,7 +164,7 @@ def hbeta_complex_fit(wave, flux, error):
     plt.plot(wave, flux)
     hbeta_complex_fit_func = models.Gaussian1D(5.0, 4853.0, 20.0, bounds = {"amplitude": [0, 15.0], "mean": [4833,4863]}) + \
             models.Gaussian1D(7.0, 4863.0, 3.0, bounds = {"amplitude": [0, 15.0], "mean": [4853, 4883]}) + \
-            models.Gaussian1D(5.0, 4883.0, 25.0, bounds = {"amplitude": [0, 15.0], "mean": [4863, 4883]}) + \
+            models.Gaussian1D(5.0, 4883.0, 25.0, bounds = {"amplitude": [0, 15.0], "mean": [4863, 4930]}) + \
             models.Gaussian1D(2.0, 4930.0, 1.5, bounds = {"amplitude": [0, 15.0], "mean": [4883, 4959]}) + \
             models.Gaussian1D(5.0, 4959.0, 1.5, bounds = {"amplitude": [0, 15.0], "mean": [4940, 4970]}) + \
             models.Gaussian1D(20.0, 5007.0, 3.0, bounds = {"amplitude": [0,50.0]}) + \
