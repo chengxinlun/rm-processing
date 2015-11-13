@@ -24,12 +24,12 @@ def read_database(filein):
 
 
 # Recommended method to read raw data
-def read_raw_data(sid, mjd):
-    os.chdir("raw/" + str(sid) + "/" + str(mjd))
+def read_raw_data(sid):
+    os.chdir("raw/" + str(sid))
     wave = read_database("wave.pkl")
     flux = read_database("flux.pkl")
-    fluxerr = read_database("fluxerr.pkl")
-    os.chdir("../../../")
+    fluxerr = read_database("ivar.pkl")
+    os.chdir("../../")
     return [wave, flux, fluxerr]
 
 
@@ -92,15 +92,15 @@ def hbeta_complex_fit(wave, flux, error):
     # (Hbeta, FeII, OIII, OIII, FeII)
     hbeta_complex_fit_func = models.Lorentz1D(20.0, 4853.0, 40.0, bounds = {"amplitude": [0, 50.0], "x_0": [4833,4873]}) + \
             models.Gaussian1D(5.0, 4930.0, 4.0, bounds = {"amplitude": [0, 20.0], "mean": [4900, 4940]}) + \
-            models.Gaussian1D(10.0, 4960.0, 4.0, bounds = {"amplitude": [0, 50.0], "mean": [4955, 4970]}) + \
-            models.Gaussian1D(20.0, 5007.0, 6.0, bounds = {"amplitude": [0,50.0]}) + \
+            models.Gaussian1D(10.0, 4960.0, 4.0, bounds = {"amplitude": [0, 50.0], "mean": [4955, 4980]}) + \
+            models.Gaussian1D(20.0, 5007.0, 6.0, bounds = {"amplitude": [0, 50.0]}) + \
             models.Gaussian1D(5.0, 5018.0, 4.0, bounds = {"amplitude": [0, 20.0], "mean": [5007, 5050]}) + \
             models.Linear1D((flux[0] - flux[-1])/(wave[0]-wave[-1]), (-flux[0] * wave[-1] + flux[-1] * wave[0])/(wave[0]-wave[-1]))
     fitter = fitting.LevMarLSQFitter()
     #with warnings.catch_warnings():
     #    warnings.filterwarnings('error')
     #    try:
-    fit = fitter(hbeta_complex_fit_func, wave, flux, weights=1 / error**2)
+    fit = fitter(hbeta_complex_fit_func, wave, flux, weights = error, maxiter = 10000)
     #    except Warning:
     #        plt.close()
     #        raise SpectraException("Line Hbeta fit failed")
@@ -108,9 +108,14 @@ def hbeta_complex_fit(wave, flux, error):
     plt.plot(wave, expected)
     cont = models.Linear1D(fit.parameters[15], fit.parameters[16])
     plt.plot(wave, cont(wave))
+    plt.show()
     fig.savefig("Hbeta.png")
     plt.close()
-    rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 17)
+    rcs = 0
+    for i in range(len(flux)):
+        rcs = rcs + (flux[i] - expected[i]) ** 2.0
+    rcs = rcs / np.abs(len(flux)-17)
+    print(rcs)
     if rcs > 10.0:
         plt.close()
         raise SpectraException(
@@ -130,22 +135,23 @@ def fe2_before_hbeta(wave, flux, error):
             models.Gaussian1D(5.0, 4583.0, 5.0, bounds = {"amplitude": [0, 10.0], "mean": [4575, 4590]}) + \
             models.Gaussian1D(2.0, 4629.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [4620, 4650]}) + \
             models.Gaussian1D(2.0, 4660.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [4650, 4670]}) + \
-            models.PowerLaw1D(flux[0], wave[0], -np.log(flux[-1]/flux[0])/np.log(wave[-1]/wave[0]), fixed = {"x_0": True})
+            models.Linear1D((flux[0] - flux[-1])/(wave[0]-wave[-1]), (-flux[0] * wave[-1] + flux[-1] * wave[0])/(wave[0]-wave[-1]))
     fitter = fitting.LevMarLSQFitter()
     #with warnings.catch_warnings():
     #    warnings.filterwarnings('error')
     #    try:
-    fit = fitter(hbeta_complex_fit_func, wave, flux, weights=1 / error**2)
+    fit = fitter(hbeta_complex_fit_func, wave, flux, weights= error, maxiter = 10000)
     #    except Warning:
     #        plt.close()
     #        raise SpectraException("Line Fe2 before Hbeta fit failed")
     expected = np.array(fit(wave))
     plt.plot(wave, expected)
-    cont = models.PowerLaw1D(fit.parameters[18], fit.parameters[19], fit.parameters[20])
+    cont = models.Linear1D(fit.parameters[18], fit.parameters[19])
     plt.plot(wave, cont(wave))
+    plt.show()
     fig.savefig("bef")
     plt.close()
-    rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 21)
+    rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 20)
     if rcs > 10.0:
         plt.close()
         raise SpectraException("Line Hbeta reduced chi-square too large" + str(rcs))
@@ -162,22 +168,23 @@ def fe2_after_hbeta(wave, flux, error):
             models.Gaussian1D(2.0, 5234.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [5220, 5250]}) + \
             models.Gaussian1D(2.0, 5276.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [5260, 5300]}) + \
             models.Gaussian1D(5.0, 5316.0, 2.0, bounds = {"amplitude": [0, 10.0], "mean": [5300, 5325]}) + \
-            models.PowerLaw1D(flux[0], wave[0], -np.log(flux[-1]/flux[0])/np.log(wave[-1]/wave[0]), fixed = {"x_0": True})
+            models.Linear1D((flux[0] - flux[-1])/(wave[0]-wave[-1]), (-flux[0] * wave[-1] + flux[-1] * wave[0])/(wave[0]-wave[-1]))
     fitter = fitting.LevMarLSQFitter()
     #with warnings.catch_warnings():
     #    warnings.filterwarnings('error')
     #    try:
-    fit = fitter(hbeta_complex_fit_func, wave, flux, weights=1 / error**2)
+    fit = fitter(hbeta_complex_fit_func, wave, flux, weights= error, maxiter = 10000)
     #    except Warning:
     #        plt.close()
     #        raise SpectraException("Line Fe2 before Hbeta fit failed")
     expected = np.array(fit(wave))
     plt.plot(wave, expected)
-    cont = models.PowerLaw1D(fit.parameters[15], fit.parameters[16], fit.parameters[17])
+    cont = models.Linear1D(fit.parameters[15], fit.parameters[16])
     plt.plot(wave, cont(wave))
+    plt.show()
     fig.savefig("aft")
     plt.close()
-    rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 18)
+    rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 17)
     if rcs > 10.0:
         plt.close()
         raise SpectraException("Line Hbeta reduced chi-square too large" + str(rcs))
@@ -213,10 +220,10 @@ def compare_fe2(wave, flux, error):
     [wave_fit, flux_fit, error_fit] = extract_fit_part(wave, flux, error, 5120.0, 5400.0)
     aft_res = fe2_after_hbeta(wave_fit, flux_fit, error_fit)
     # Get total flux of each Fe line
-    fecont = lambda x: bef_res[18] * (x / bef_res[19]) ** (0.0 - bef_res[20])
+    fecont = lambda x: bef_res[18] * x + bef_res[19]
     feflux = bef_res[0] + bef_res[3] + bef_res[6] + bef_res[9] + bef_res[12] + bef_res[15]
     fecontflux = fecont(bef_res[1]) + fecont(bef_res[4]) + fecont(bef_res[10]) + fecont(bef_res[13]) + fecont(bef_res[16])
-    fecont = lambda x: aft_res[15] * (x / aft_res[16]) ** (0.0 - aft_res[17])
+    fecont = lambda x: aft_res[15] * x + aft_res[16]
     feflux = feflux + aft_res[0] + aft_res[3] + aft_res[6] + aft_res[9] + aft_res[12]
     fecontflux = fecontflux + fecont(aft_res[1]) + fecont(aft_res[4]) + fecont(aft_res[7]) + fecont(aft_res[10]) + fecont(aft_res[13])
     fesn = feflux / fecontflux
@@ -225,13 +232,11 @@ def compare_fe2(wave, flux, error):
 
 
 # Function to output fit result and error
-def output_fit(fit_result, sid, mjd, line):
+def output_fit(fit_result, sid, line):
     picklefile = open(
         "Fe2/" +
         str(sid) +
         "/" +
-        str(mjd) +
-        "-" +
         str(line) +
         ".pkl",
         "wb")
@@ -240,12 +245,10 @@ def output_fit(fit_result, sid, mjd, line):
 
 
 # Exception logging process
-def exception_logging(sid, mjd, line, reason):
+def exception_logging(sid, line, reason):
     log = open("Fe2_fit_error.log", "a")
     log.write(
         str(sid) +
-        " " +
-        str(mjd) +
         " " +
         str(line) +
         " " +
@@ -255,7 +258,6 @@ def exception_logging(sid, mjd, line, reason):
 
 
 def main_process(sid, line):
-    mjd_list = os.listdir("raw/" + str(sid))
     os.chdir("Fe2")
     try:
         os.mkdir(str(sid))
@@ -266,35 +268,26 @@ def main_process(sid, line):
         os.mkdir(str(sid))
     except OSError:
         pass
-    for each_mjd in mjd_list:
-        os.chdir(str(sid))
-        try:
-            os.mkdir(str(each_mjd))
-        except OSError:
-            pass
-        os.chdir("../../")
-        print(str(sid) + "-" + str(each_mjd))
-        [wave, flux, fluxerr] = read_raw_data(sid, each_mjd)
-        [wave, flux, fluxerr] = mask_points(wave, flux, fluxerr)
-        # Extract the part of data for fitting
-        [wave, flux, fluxerr] = extract_fit_part(wave, flux, fluxerr, line[0], line[2])
-        os.chdir("Fe2-fig/" + str(sid) + "/" + str(each_mjd))
-        try:
-            [hbeta, bef, aft, o3sn, fesn] = compare_fe2(wave, flux, fluxerr)
-        except Exception as reason:
-            print(str(reason))
-            exception_logging(sid, each_mjd, "Fe2", reason)
-            pass
-        os.chdir("../../../")
-        output_fit(hbeta, sid, each_mjd, "Hbeta")
-        output_fit(bef, sid, each_mjd, "bef")
-        output_fit(aft, sid, each_mjd, "aft")
-        print("Process finished for " + each_mjd + "\n")
-        os.chdir("Fe2/")
-        sn_file = open(str(sid) + ".txt", "a")
-        sn_file.write("%d    %9.4f    %9.4f\n" % (int(each_mjd), o3sn, fesn))
-        sn_file.close()
-        os.chdir("../Fe2-fig")
+    os.chdir("../")
+    [wave, flux, fluxerr] = read_raw_data(sid)
+    [wave, flux, fluxerr] = mask_points(wave, flux, fluxerr)
+    # Extract the part of data for fitting
+    [wave, flux, fluxerr] = extract_fit_part(wave, flux, fluxerr, line[0], line[2])
+    os.chdir("Fe2-fig/" + str(sid))
+    try:
+        [hbeta, bef, aft, o3sn, fesn] = compare_fe2(wave, flux, fluxerr)
+    except Exception as reason:
+        print(str(reason))
+        exception_logging(sid, "Fe2", reason)
+        pass
+    os.chdir("../../")
+    output_fit(hbeta, sid, "Hbeta")
+    output_fit(bef, sid, "bef")
+    output_fit(aft, sid, "aft")
+    os.chdir("Fe2/")
+    sn_file = open(str(sid) + ".txt", "a")
+    sn_file.write("%9.4f    %9.4f\n" % (o3sn, fesn))
+    sn_file.close()
     os.chdir("../")
 
 
@@ -307,7 +300,8 @@ try:
     os.mkdir("Fe2-fig")
 except OSError:
     pass
-sid_list = [118, 265, 267, 316, 335, 341, 548, 622, 634, 720, 736, 772, 775, 782, 790, 797, 798, 804, 805, 822, 843]
+#sid_list = get_total_sid_list()
+sid_list = [171]
 for each_sid in sid_list:
     #try:
     main_process(str(each_sid), line)
