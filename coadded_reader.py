@@ -66,3 +66,5 @@ def main_process():
     output(ra_dict, "info_database/ra.pkl")
     output(dec_dict, "info_database/dec.pkl")
     output(zfinal_dict, "info_database/zfinal.pkl")
+
+main_process()
