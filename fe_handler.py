@@ -85,16 +85,17 @@ def extract_fit_part(wave, flux, error, min_wave, max_wave):
     return [wave_fit, flux_fit, error_fit]
 
 
-# Function to fit Hbeta
+# Function to fit Hbeta for se quasars
 def hbeta_complex_fit(wave, flux, error):
     fig = plt.figure()
     plt.plot(wave, flux)
     # (Hbeta, FeII, OIII, OIII, FeII)
-    hbeta_complex_fit_func = models.Lorentz1D(20.0, 4853.0, 40.0, bounds = {"amplitude": [0, 50.0], "x_0": [4833,4873]}) + \
-            models.Gaussian1D(5.0, 4930.0, 4.0, bounds = {"amplitude": [0, 20.0], "mean": [4900, 4940]}) + \
-            models.Gaussian1D(10.0, 4960.0, 4.0, bounds = {"amplitude": [0, 50.0], "mean": [4955, 4980]}) + \
-            models.Gaussian1D(20.0, 5007.0, 6.0, bounds = {"amplitude": [0, 50.0]}) + \
-            models.Gaussian1D(5.0, 5018.0, 4.0, bounds = {"amplitude": [0, 20.0], "mean": [5007, 5050]}) + \
+    hbeta_complex_fit_func = models.Lorentz1D(5.0, 4853.0, 40.0, bounds = {"amplitude": [0, 50.0], "x_0": [4833,4873]}) + \
+            models.Gaussian1D(5.0, 4930.0, 1.0, bounds = {"amplitude": [0, 20.0], "mean": [4900, 4950]}) + \
+            models.Gaussian1D(3.0, 4959.0, 3.0, bounds = {"amplitude": [0, 25.0], "mean": [4950, 4970]}) + \
+            models.Gaussian1D(5.0, 4961.0, 3.0, bounds = {"amplitude": [0, 25.0], "mean": [4955, 4970]}) + \
+            models.Gaussian1D(20.0, 5007.0, 6.0, bounds = {"amplitude": [0, 50.0], "mean": [4990, 5020]}) + \
+            models.Gaussian1D(5.0, 5018.0, 7.0, bounds = {"amplitude": [0, 25.0], "mean": [5013, 5030]}) + \
             models.Linear1D((flux[0] - flux[-1])/(wave[0]-wave[-1]), (-flux[0] * wave[-1] + flux[-1] * wave[0])/(wave[0]-wave[-1]))
     fitter = fitting.LevMarLSQFitter()
     with warnings.catch_warnings():
@@ -104,16 +105,17 @@ def hbeta_complex_fit(wave, flux, error):
         except Warning:
             expected = np.array(fit(wave))
             plt.plot(wave, expected)
-            cont = models.Linear1D(fit.parameters[15], fit.parameters[16])
+            cont = models.Linear1D(fit.parameters[18], fit.parameters[19])
             plt.plot(wave, cont(wave))
-            fig.savefig("Hbeta-failed")
+            fig.savefig("Hbeta-l-failed.jpg")
             plt.close()
             raise SpectraException("Line Hbeta fit failed")
     expected = np.array(fit(wave))
     plt.plot(wave, expected)
-    cont = models.Linear1D(fit.parameters[15], fit.parameters[16])
+    cont = models.Linear1D(fit.parameters[18], fit.parameters[19])
     plt.plot(wave, cont(wave))
-    fig.savefig("Hbeta.png")
+    plt.show()
+    fig.savefig("Hbeta-l.jpg")
     plt.close()
     rcs = 0
     for i in range(len(flux)):
@@ -122,6 +124,54 @@ def hbeta_complex_fit(wave, flux, error):
     if rcs > 10.0:
         plt.close()
         raise SpectraException("Line Hbeta reduced chi-square too large" + str(rcs))
+    print(rcs)
+    print(fit.parameters)
+    return fit.parameters
+
+
+# Function to fit Hbeta lines for non-se quasars
+def hbeta_complex_fit_2(wave, flux, error):
+    fig = plt.figure()
+    plt.plot(wave, flux)
+    hbeta_complex_fit_func = \
+            models.Gaussian1D(2.0, 4862.0, 1.0, bounds = {"amplitude": [0, 25.0], "mean": [4833, 4873], "stddev": [0.0, 5.0]}) + \
+            models.Gaussian1D(5.0, 4860.0, 40.0, bounds = {"amplitude": [0, 25.0], "mean": [4833, 4873], "stddev": [5.0, 60.0]}) + \
+            models.Gaussian1D(1.0, 4855.0, 70.0, bounds = {"amplitude": [0, 25.0], "mean": [4833, 5020], "stddev": [60.0, 500.0]}) + \
+            models.Gaussian1D(2.0, 4930.0, 1.0, bounds = {"amplitude": [0, 25.0], "mean": [4883, 4959]}) + \
+            models.Gaussian1D(3.0, 4959.0, 12.0, bounds = {"amplitude": [0, 25.0], "mean": [4950, 4970]}) + \
+            models.Gaussian1D(5.0, 4961.0, 3.0, bounds = {"amplitude": [0, 25.0], "mean": [4955, 4970]}) + \
+            models.Gaussian1D(10.0, 5007.0, 3.0, bounds = {"amplitude": [0, 50.0], "mean": [4990, 5020], "stddev": [0.0, 6.0]}) + \
+            models.Gaussian1D(1.0, 5018.0, 7.0, bounds = {"amplitude": [0, 25.0], "mean": [5013, 5025], "stddev": [6.0, 30.0]}) + \
+            models.Linear1D((flux[0] - flux[-1]) / (wave[0] - wave[-1]), (-flux[0] * wave[-1] + flux[-1] * wave[0]) / (wave[0] - wave[-1]))
+    fitter = fitting.LevMarLSQFitter()
+    with warnings.catch_warnings():
+        warnings.filterwarnings('error')
+        try:
+            fit = fitter(hbeta_complex_fit_func, wave, flux, weights = error, maxiter = 10000)
+            print(fit.parameters)
+        except SpectraException:
+            expected = np.array(fit(wave))
+            plt.plot(wave, expected)
+            cont = models.Linear1D(fit.parameters[24], fit.parameters[25])
+            plt.plot(wave, cont(wave))
+            fig.savefig("Hbeta-g-failed.jpg")
+            plt.close()
+            raise SpectraException("Line Hbeta fit failed")
+    expected = np.array(fit(wave))
+    plt.plot(wave, expected)
+    cont = models.Linear1D(fit.parameters[24], fit.parameters[25])
+    plt.plot(wave, cont(wave))
+    plt.show()
+    fig.savefig("Hbeta-g.jpg")
+    plt.close()
+    rcs = 0
+    for i in range(len(flux)):
+        rcs = rcs + (flux[i] - expected[i]) ** 2.0
+    rcs = rcs / np.abs(len(flux)-20)
+    if rcs > 10.0:
+        plt.close()
+        raise SpectraException("Line Hbeta reduced chi-square too large" + str(rcs))
+    print(rcs)
     return fit.parameters
 
 
@@ -147,14 +197,14 @@ def fe2_before_hbeta(wave, flux, error):
             plt.plot(wave, expected)
             cont = models.Linear1D(fit.parameters[18], fit.parameters[19])
             plt.plot(wave, cont(wave))
-            fig.savefig("bef-failed")
+            fig.savefig("bef-failed.jpg")
             plt.close()
             raise SpectraException("Line Fe2 before Hbeta fit failed")
     expected = np.array(fit(wave))
     plt.plot(wave, expected)
     cont = models.Linear1D(fit.parameters[18], fit.parameters[19])
     plt.plot(wave, cont(wave))
-    fig.savefig("bef")
+    fig.savefig("bef.jpg")
     plt.close()
     rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 20)
     if rcs > 10.0:
@@ -184,14 +234,14 @@ def fe2_after_hbeta(wave, flux, error):
             plt.plot(wave, expected)
             cont = models.Linear1D(fit.parameters[15], fit.parameters[16])
             plt.plot(wave, cont(wave))
-            fig.savefig("aft-failed")
+            fig.savefig("aft-failed.jpg")
             plt.close()
             raise SpectraException("Line Fe2 after Hbeta fit failed")
     expected = np.array(fit(wave))
     plt.plot(wave, expected)
     cont = models.Linear1D(fit.parameters[15], fit.parameters[16])
     plt.plot(wave, cont(wave))
-    fig.savefig("aft")
+    fig.savefig("aft.jpg")
     plt.close()
     rcs = chisquare(flux, expected)[0] / np.abs(len(flux) - 17)
     if rcs > 10.0:
@@ -215,7 +265,8 @@ def union(a):
 def compare_fe2(wave, flux, error):
     # First fit Hbeta and OIII
     [wave_fit, flux_fit, error_fit] = extract_fit_part(wave, flux, error, 4720.0, 5100.0)
-    hbeta_res = hbeta_complex_fit(wave_fit, flux_fit, error_fit)
+    hbeta_g_res = hbeta_complex_fit_2(wave_fit, flux_fit, error_fit)
+    hbeta_l_res = hbeta_complex_fit(wave_fit, flux_fit, error_fit)
     o3range = [hbeta_res[10] - 3.0 * hbeta_res[11], hbeta_res[10] + 3.0 * hbeta_res[11]]
     o3cont = lambda x: hbeta_res[15] * x + hbeta_res[16]
     o3flux = hbeta_res[9]
@@ -297,6 +348,7 @@ def main_process(sid, line):
     sn_file.write("%9.4f    %9.4f\n" % (o3sn, fesn))
     sn_file.close()
     os.chdir("../")
+    print("Process finished for " + str(sid))
 
 
 line = [4250.0, 4902.0, 5400.0]
@@ -308,8 +360,9 @@ try:
     os.mkdir("Fe2-fig")
 except OSError:
     pass
-sid_list = get_total_sid_list()
-#sid_list = [171]
+#sid_list = get_total_sid_list()
+sid_list = [521]
+#sid_list = [1141]
 for each_sid in sid_list:
     #try:
     main_process(str(each_sid), line)
