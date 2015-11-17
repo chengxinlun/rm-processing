@@ -134,6 +134,12 @@ def hbeta_complex_fit_2(wave, flux, error):
     fig = plt.figure()
     plt.plot(wave, flux)
     hbeta_complex_fit_func = \
+            models.Gaussian1D(2.7, 4522.0, 5.0, bounds = {"amplitude": [0, 10.0], "mean": [4510, 4530]}) + \
+            models.Gaussian1D(3.1, 4549.0, 5.0, bounds = {"amplitude": [0, 10.0], "mean": [4540, 4555]}) + \
+            models.Gaussian1D(1.5, 4555.0, 5.0, bounds = {"amplitude": [0, 10.0], "mean": [4550, 4570]}) + \
+            models.Gaussian1D(4.2, 4583.0, 5.0, bounds = {"amplitude": [0, 10.0], "mean": [4575, 4590]}) + \
+            models.Gaussian1D(1.4, 4629.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [4620, 4650]}) + \
+            models.Gaussian1D(2.0, 4660.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [4650, 4670]}) + \
             models.Gaussian1D(2.0, 4862.0, 1.0, bounds = {"amplitude": [0, 25.0], "mean": [4833, 4873], "stddev": [0.0, 7.0]}) + \
             models.Gaussian1D(5.0, 4860.0, 40.0, bounds = {"amplitude": [0, 25.0], "mean": [4833, 4873], "stddev": [7.0, 60.0]}) + \
             models.Gaussian1D(1.0, 4855.0, 70.0, bounds = {"amplitude": [0, 25.0], "mean": [4833, 5020]}) + \
@@ -142,7 +148,12 @@ def hbeta_complex_fit_2(wave, flux, error):
             models.Gaussian1D(5.0, 4961.0, 3.0, bounds = {"amplitude": [0, 25.0], "mean": [4955, 4970]}) + \
             models.Gaussian1D(10.0, 5007.0, 3.0, bounds = {"amplitude": [0, 50.0], "mean": [4990, 5020]}) + \
             models.Gaussian1D(1.0, 5018.0, 7.0, bounds = {"amplitude": [0, 25.0], "mean": [5008, 5025]}) + \
-            models.Linear1D((flux[0] - flux[-1]) / (wave[0] - wave[-1]), (-flux[0] * wave[-1] + flux[-1] * wave[0]) / (wave[0] - wave[-1]))
+            models.Gaussian1D(5.0, 5169.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [5150, 5180]}) + \
+            models.Gaussian1D(5.0, 5197.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [5180, 5210]}) + \
+            models.Gaussian1D(2.0, 5234.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [5220, 5250]}) + \
+            models.Gaussian1D(2.0, 5276.0, 7.0, bounds = {"amplitude": [0, 10.0], "mean": [5260, 5300]}) + \
+            models.Gaussian1D(5.0, 5316.0, 2.0, bounds = {"amplitude": [0, 10.0], "mean": [5300, 5325]}) + \
+            models.PowerLaw1D(flux[0], wave[0], - np.log(flux[-1]/flux[0]) / np.log(wave[-1]/wave[0]), fixed = {"x_0": True})
     #hbeta_complex_fit_func.mean_5.tied = lambda x: -48.0 + x.mean_6
     #hbeta_complex_fit_func.amplitude_5.tied = lambda x: 1.0 / 2.99 * x.amplitude_6
     #hbeta_complex_fit_func.stddev_5.tied = lambda x: 1.0 * x.stddev_6
@@ -154,15 +165,17 @@ def hbeta_complex_fit_2(wave, flux, error):
         except SpectraException:
             expected = np.array(fit(wave))
             plt.plot(wave, expected)
-            cont = models.Linear1D(fit.parameters[24], fit.parameters[25])
+            cont = models.PowerLaw1D(fit.parameters[57], fit.parameters[58], fit.parameters[59])
             plt.plot(wave, cont(wave))
+            plt.show()
             fig.savefig("Hbeta-g-failed.jpg")
             plt.close()
             raise SpectraException("Line Hbeta fit failed")
     expected = np.array(fit(wave))
     plt.plot(wave, expected)
-    cont = models.Linear1D(fit.parameters[24], fit.parameters[25])
+    cont = models.PowerLaw1D(fit.parameters[57], fit.parameters[58], fit.parameters[59])
     plt.plot(wave, cont(wave))
+    plt.show()
     fig.savefig("Hbeta-g.jpg")
     plt.close()
     rcs = 0
@@ -283,7 +296,7 @@ def flux_sum(part, wave, flux):
 def compare_fe2(wave, flux, error):
     # First fit Hbeta and OIII
     se = False
-    [wave_fit, flux_fit, error_fit] = extract_fit_part(wave, flux, error, 4720.0, 5100.0)
+    [wave_fit, flux_fit, error_fit] = extract_fit_part(wave, flux, error, 4400.0, 5400.0)
     try:
         [hbeta_g_res, g_rcs] = hbeta_complex_fit_2(wave_fit, flux_fit, error_fit)
     except SpectraException:
