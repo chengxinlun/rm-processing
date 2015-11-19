@@ -85,6 +85,22 @@ def extract_fit_part(wave, flux, error, min_wave, max_wave):
     return [wave_fit, flux_fit, error_fit]
 
 
+# Function to read in semi feII template and change them to completed fe2 template
+def template_construct(fit_res):
+    def fe2_template(x, ra = 1.0, deltax = 0.0, rstd = 1.0):
+        template = models.Const1D(0)
+        i = 0
+        try:
+            while True:
+                template = template + models.Gaussian1D(ra * fit_res.parameters[i+1], deltax + fit_res.parameters[i+2], rstd * fit_res.parameters[i+3])
+                i = i + 3
+            except Exception:
+                pass
+        return template(x)
+    template = models.custom_model(fe2_template)
+    return template
+
+
 # Function to fit Hbeta for se quasars
 def hbeta_complex_fit(wave, flux, error):
     fig = plt.figure()

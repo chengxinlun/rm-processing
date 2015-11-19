@@ -34,23 +34,6 @@ def fit_standard_curve(wave, flux, standard):
     return [fit, fig]
 
 
-def template_construct(fit_res):
-    def fe2_template(x, ra = 1.0, deltax = 0.0, rstd = 1.0):
-        template = models.Const1D(0)
-        i = 0
-        try:
-            while True:
-                template = template + models.Gaussian1D(ra * fit_res.parameters[i+1], deltax + fit_res.parameters[i+2], rstd * fit_res.parameters[i+3])
-                i = i + 3
-        except Exception:
-            pass
-        return template(x)
-
-    template = models.custom_model(fe2_template)
-    template._is_dynamic = True
-    return template
-
-
 def output_template(width, group, template, fig):
     os.chdir("FeII_template")
     try:
